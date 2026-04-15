@@ -6,34 +6,34 @@ on:
   pull_request:
     branches: ["main"]
 
-
 jobs:
   test:
     name: Lint & Test
     runs-on: ubuntu-latest
+    
+    # [공급망 공격 방어] CI 환경에서도 7일 지연 룰 적용
+    env:
+      UV_EXCLUDE_NEWER: "7 days" 
 
     steps:
       - uses: actions/checkout@v4
+
+      # 1. uv 설치 및 Lock 파일 캐싱 설정
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
 
+      # 2. DevSecOps 표준 설치 (pip install 대신 uv sync)
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --frozen
 
+      # 3. 안전하게 격리된 환경에서 테스트 실행
       - name: Run tests
-        run: pytest --tb=short -q
-
-  docker-build:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t devops-demo-api:${{ github.sha }} .
+        run: uv run pytest --tb=short -q
